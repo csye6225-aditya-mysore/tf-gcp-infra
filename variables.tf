@@ -17,3 +17,13 @@ variable "zone" {
   type    = string
   default = "us-east1-b"
 }
+
+variable "webapp-subnet-cidr-range" {
+  type = string
+  default = "10.1.0.0/24"
+}
+
+variable "db-subnet-cidr-range" {
+  type = string
+  default = "10.1.1.0/24"
+}

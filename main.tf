@@ -15,7 +15,7 @@ provider "google" {
 }
 
 resource "google_compute_network" "east1-vpc" {
-  name                            = "east1-vpc-network"
+  name                            = "${var.region}-vpc-network"
   auto_create_subnetworks         = false
   routing_mode                    = "REGIONAL"
   delete_default_routes_on_create = true
@@ -25,7 +25,7 @@ resource "google_compute_network" "east1-vpc" {
 resource "google_compute_subnetwork" "webapp" {
   name          = "webapp-subnet"
   network       = google_compute_network.east1-vpc.self_link
-  ip_cidr_range = "10.1.1.0/24"
+  ip_cidr_range = var.webapp-subnet-cidr-range
   region        = var.region
   depends_on    = [google_compute_network.east1-vpc]
 }
@@ -33,13 +33,13 @@ resource "google_compute_subnetwork" "webapp" {
 resource "google_compute_subnetwork" "db" {
   name          = "db-subnet"
   network       = google_compute_network.east1-vpc.self_link
-  ip_cidr_range = "10.1.0.0/24"
+  ip_cidr_range = var.db-subnet-cidr-range
   region        = var.region
   depends_on    = [google_compute_network.east1-vpc]
 }
 
 
-resource "google_compute_route" "public_route" {
+resource "google_compute_route" "public_route_for_webapp" {
   name             = "public-route-for-webapp"
   network          = google_compute_network.east1-vpc.id
   dest_range       = "0.0.0.0/0"
