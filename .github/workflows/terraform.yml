@@ -1,9 +1,9 @@
 name: validate-terraform
 
 on:
-  push:
+  pull_request:
     branches:
-      - assignment3
+      - main
   
 jobs:
   validate-terraform:
