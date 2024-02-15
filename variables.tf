@@ -28,7 +28,7 @@ variable "db-subnet-cidr-range" {
   default = "10.1.1.0/24"
 }
 
-variable "vpc-name" {
+variable "vpc_name" {
   type    = string
   default = "csye-vpc"
 }
