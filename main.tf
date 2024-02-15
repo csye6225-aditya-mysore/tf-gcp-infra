@@ -15,7 +15,7 @@ provider "google" {
 }
 
 resource "google_compute_network" "csye-vpc" {
-  name                            = "${var.vpc_name}-${count.index}"
+  name                            = "${var.vpc-name}-${count.index}"
   count                           = var.vpc-count
   auto_create_subnetworks         = false
   routing_mode                    = "REGIONAL"
