@@ -14,8 +14,9 @@ provider "google" {
   zone        = var.zone
 }
 
-resource "google_compute_network" "east1-vpc" {
-  name                            = "${var.region}-vpc-network"
+resource "google_compute_network" "csye-vpc" {
+  name                            = "${var.vpc-name}-${count.index}"
+  count                           = var.vpc-count
   auto_create_subnetworks         = false
   routing_mode                    = "REGIONAL"
   delete_default_routes_on_create = true
@@ -23,30 +24,30 @@ resource "google_compute_network" "east1-vpc" {
 
 
 resource "google_compute_subnetwork" "webapp" {
-  name          = "webapp-subnet"
-  network       = google_compute_network.east1-vpc.self_link
-  ip_cidr_range = var.webapp-subnet-cidr-range
+  name          = "${var.webapp-subnet-name}-${count.index}"
+  count         = var.vpc-count
+  network       = google_compute_network.csye-vpc[count.index].self_link
+  ip_cidr_range = cidrsubnet(var.cidr-range, 4, count.index)
   region        = var.region
-  depends_on    = [google_compute_network.east1-vpc]
 }
 
 resource "google_compute_subnetwork" "db" {
-  name          = "db-subnet"
-  network       = google_compute_network.east1-vpc.self_link
-  ip_cidr_range = var.db-subnet-cidr-range
+  name          = "${var.db-subnet-name}-${count.index}"
+  count         = var.vpc-count
+  network       = google_compute_network.csye-vpc[count.index].self_link
+  ip_cidr_range = cidrsubnet(var.cidr-range, 4, count.index + var.number-of-subnets)
   region        = var.region
-  depends_on    = [google_compute_network.east1-vpc]
 }
 
 
 resource "google_compute_route" "public_route_for_webapp" {
-  name             = "public-route-for-webapp"
-  network          = google_compute_network.east1-vpc.id
+  name             = "${var.public-route-name}-${count.index}"
+  count            = var.vpc-count
+  network          = google_compute_network.csye-vpc[count.index].self_link
   dest_range       = "0.0.0.0/0"
   next_hop_gateway = "default-internet-gateway"
-  depends_on = [ google_compute_subnetwork.webapp ]
 
   tags = [
-    "webapp-subnet"
+    google_compute_subnetwork.webapp[count.index].name
   ]
 }
