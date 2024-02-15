@@ -35,7 +35,7 @@ resource "google_compute_subnetwork" "db" {
   name          = "${var.db-subnet-name}-${count.index}"
   count         = var.vpc-count
   network       = google_compute_network.csye-vpc[count.index].self_link
-  ip_cidr_range = cidrsubnet(var.cidr-range, 4, count.index + var.number-of-subnets)
+  ip_cidr_range = cidrsubnet(var.cidr-range, 4, count.index + var.vpc-count)
   region        = var.region
 }
 
