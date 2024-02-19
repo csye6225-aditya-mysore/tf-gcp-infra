@@ -14,7 +14,7 @@ provider "google" {
   zone        = var.zone
 }
 
-resource "google_compute_network" "csye-vpc" {
+resource "google_compute_network" "csye_vpc" {
   name                            = "${var.vpc-name}-${count.index}"
   count                           = var.vpc-count
   auto_create_subnetworks         = false
