@@ -1,6 +1,6 @@
 variable "credentials_file" {
   type    = string
-  default = "~/Documents/GCloud/keys/csye6225-aditya-mysore-9280c98e589c.json"
+  default = "~/Documents/GCloud/keys/dev-aditya-mysore-8ec41076eab4.json"
 }
 
 variable "project_id" {
@@ -61,4 +61,54 @@ variable "cidr-range" {
 variable "number-of-subnets" {
   type = number
   default = 2
+}
+
+variable "routing-mode" {
+  type = string
+  default = "REGIONAL"
+}
+
+variable "auto-create-subnets-boolean" {
+  type = bool
+  default = false
+}
+
+variable "delete-default-routes-on-create" {
+  type = bool
+  default = false
+}
+
+variable "compute-image" {
+  type = string
+  default = "projects/dev-aditya-mysore/global/images/practice-image-centos-8"
+}
+
+variable "compute-instance-name" {
+  type = string
+  default = "my-instance"
+}
+
+variable "stack-type" {
+  type = string
+  default = "IPV4_ONLY"
+}
+
+variable "compute-disk-size" {
+  type = number
+  default = 100
+}
+
+variable "compute-machine-type" {
+  type = string
+  default = "e2-micro"
+}
+
+variable "app-port" {
+  type = string
+  default = "8000"
+}
+
+variable "compute-instance-disk-type" {
+  type = string
+  default = "pd-balanced"
 }
