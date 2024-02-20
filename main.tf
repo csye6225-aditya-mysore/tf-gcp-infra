@@ -46,8 +46,60 @@ resource "google_compute_route" "public_route_for_webapp" {
   network          = google_compute_network.csye-vpc[count.index].self_link
   dest_range       = "0.0.0.0/0"
   next_hop_gateway = "default-internet-gateway"
+}
 
-  tags = [
-    google_compute_subnetwork.webapp[count.index].name
+resource "google_compute_firewall" "webapp_ingress_firewall" {
+  name    = "webapp-ingress-firewall"
+  count = var.vpc-count
+  network = google_compute_network.csye-vpc[count.index].name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8000"]
+  }
+
+  source_ranges = [
+    "0.0.0.0/0"
   ]
+
+  target_tags = [
+    "webapp"
+  ]
+}
+
+resource "google_compute_instance" "new_instance" {
+  name = "my-instance"
+  machine_type = "e2-micro"
+  zone = var.zone
+  boot_disk {
+    auto_delete = true
+    device_name = "my-instance"
+
+    initialize_params {
+      image = "projects/dev-aditya-mysore/global/images/practice-image-centos-8"
+      size = 100
+      type = "pd-balanced"
+    }
+
+    mode = "READ_WRITE"
+  }
+
+  network_interface {
+    access_config {
+      network_tier = "PREMIUM"
+    }
+
+    stack_type  = "IPV4_ONLY"
+    subnetwork = google_compute_subnetwork.webapp[0].name
+  }
+
+  scheduling {
+    automatic_restart   = true
+    on_host_maintenance = "MIGRATE"
+    preemptible         = false
+    provisioning_model  = "STANDARD"
+  }
+
+  tags = ["http-server", "webapp"]
+  depends_on = [ google_compute_network.csye-vpc[0] ]
 }
