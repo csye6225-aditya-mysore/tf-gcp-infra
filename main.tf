@@ -17,9 +17,9 @@ provider "google" {
 resource "google_compute_network" "csye-vpc" {
   name                            = "${var.vpc-name}-${count.index}"
   count                           = var.vpc-count
-  auto_create_subnetworks         = false
-  routing_mode                    = "REGIONAL"
-  delete_default_routes_on_create = true
+  auto_create_subnetworks         = var.auto-create-subnets-boolean
+  routing_mode                    = var.routing-mode
+  delete_default_routes_on_create = var.delete-default-routes-on-create
 }
 
 
@@ -55,7 +55,7 @@ resource "google_compute_firewall" "webapp_ingress_firewall" {
 
   allow {
     protocol = "tcp"
-    ports    = ["8000"]
+    ports    = [var.app-port]
   }
 
   source_ranges = [
@@ -68,17 +68,17 @@ resource "google_compute_firewall" "webapp_ingress_firewall" {
 }
 
 resource "google_compute_instance" "new_instance" {
-  name = "my-instance"
-  machine_type = "e2-micro"
+  name = var.compute-instance-name
+  machine_type = var.compute-machine-type
   zone = var.zone
   boot_disk {
     auto_delete = true
-    device_name = "my-instance"
+    device_name = var.compute-instance-name
 
     initialize_params {
-      image = "projects/dev-aditya-mysore/global/images/practice-image-centos-8"
-      size = 100
-      type = "pd-balanced"
+      image = var.compute-image
+      size = var.compute-disk-size
+      type = var.compute-instance-disk-type
     }
 
     mode = "READ_WRITE"
@@ -89,7 +89,7 @@ resource "google_compute_instance" "new_instance" {
       network_tier = "PREMIUM"
     }
 
-    stack_type  = "IPV4_ONLY"
+    stack_type  = var.stack-type
     subnetwork = google_compute_subnetwork.webapp[0].name
   }
 
