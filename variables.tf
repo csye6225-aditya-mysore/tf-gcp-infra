@@ -137,3 +137,18 @@ variable "compute-disk-autodelete" {
   type = bool
   default = true
 }
+
+variable "allow-firewall-priority" {
+  type = number
+  default = 999
+}
+
+variable "deny-firewall-priority" {
+  type = number
+  default = 1000
+}
+
+variable "traffic-type" {
+  type = string
+  default = "tcp"
+}

@@ -52,10 +52,30 @@ resource "google_compute_firewall" "webapp_ingress_firewall" {
   name    = "webapp-ingress-firewall"
   count = var.vpc-count
   network = google_compute_network.csye-vpc[count.index].name
+  priority = var.allow-firewall-priority
 
   allow {
-    protocol = "tcp"
+    protocol = var.traffic-type
     ports    = [var.app-port]
+  }
+
+  source_ranges = [
+    "0.0.0.0/0"
+  ]
+
+  target_tags = [
+    "webapp"
+  ]
+}
+
+resource "google_compute_firewall" "webapp_egress_firewall" {
+  name    = "webapp-egress-firewall"
+  count = var.vpc-count
+  network = google_compute_network.csye-vpc[count.index].name
+  priority = var.deny-firewall-priority
+
+  deny {
+    protocol = var.traffic-type
   }
 
   source_ranges = [
