@@ -132,3 +132,8 @@ variable "provisioning-model" {
   type = string
   default = "STANDARD"
 }
+
+variable "compute-disk-autodelete" {
+  type = bool
+  default = true
+}
