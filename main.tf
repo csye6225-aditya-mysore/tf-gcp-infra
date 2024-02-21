@@ -94,12 +94,12 @@ resource "google_compute_instance" "new_instance" {
   }
 
   scheduling {
-    automatic_restart   = true
-    on_host_maintenance = "MIGRATE"
-    preemptible         = false
-    provisioning_model  = "STANDARD"
+    automatic_restart   = var.compute-instance-automatic-restart
+    on_host_maintenance = var.on-host-maintenance
+    preemptible         = var.preemptible
+    provisioning_model  = var.provisioning-model
   }
 
-  tags = ["http-server", "webapp"]
+  tags = ["webapp"]
   depends_on = [ google_compute_network.csye-vpc[0] ]
 }

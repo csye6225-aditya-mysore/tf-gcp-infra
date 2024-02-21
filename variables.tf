@@ -112,3 +112,23 @@ variable "compute-instance-disk-type" {
   type = string
   default = "pd-balanced"
 }
+
+variable "compute-instance-automatic-restart" {
+  type = bool
+  default = true
+}
+
+variable "on-host-maintenance" {
+  type = string
+  default = "MIGRATE"
+}
+
+variable "preemptible" {
+  type = bool
+  default = false
+}
+
+variable "provisioning-model" {
+  type = string
+  default = "STANDARD"
+}
