@@ -72,7 +72,7 @@ resource "google_compute_instance" "new_instance" {
   machine_type = var.compute-machine-type
   zone = var.zone
   boot_disk {
-    auto_delete = true
+    auto_delete = var.compute-disk-autodelete
     device_name = var.compute-instance-name
 
     initialize_params {
