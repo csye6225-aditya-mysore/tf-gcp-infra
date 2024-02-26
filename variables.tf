@@ -5,7 +5,7 @@ variable "credentials_file" {
 
 variable "project_id" {
   type    = string
-  default = "csye6225-aditya-mysore"
+  default = "dev-aditya-mysore"
 }
 
 variable "region" {
