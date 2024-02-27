@@ -49,106 +49,106 @@ variable "vpc-count" {
 }
 
 variable "public-route-name" {
-  type = string
+  type    = string
   default = "public-route-for-webapp"
 }
 
 variable "cidr-range" {
-  type = string
+  type    = string
   default = "10.1.0.0/20"
 }
 
 variable "number-of-subnets" {
-  type = number
+  type    = number
   default = 2
 }
 
 variable "routing-mode" {
-  type = string
+  type    = string
   default = "REGIONAL"
 }
 
 variable "auto-create-subnets-boolean" {
-  type = bool
+  type    = bool
   default = false
 }
 
 variable "delete-default-routes-on-create" {
-  type = bool
+  type    = bool
   default = false
 }
 
 variable "compute-image" {
-  type = string
+  type    = string
   default = "projects/dev-aditya-mysore/global/images/practice-image-centos-8"
 }
 
 variable "compute-instance-name" {
-  type = string
+  type    = string
   default = "my-instance"
 }
 
 variable "stack-type" {
-  type = string
+  type    = string
   default = "IPV4_ONLY"
 }
 
 variable "compute-disk-size" {
-  type = number
+  type    = number
   default = 100
 }
 
 variable "compute-machine-type" {
-  type = string
+  type    = string
   default = "e2-micro"
 }
 
 variable "app-port" {
-  type = string
+  type    = string
   default = "8000"
 }
 
 variable "compute-instance-disk-type" {
-  type = string
+  type    = string
   default = "pd-balanced"
 }
 
 variable "compute-instance-automatic-restart" {
-  type = bool
+  type    = bool
   default = true
 }
 
 variable "on-host-maintenance" {
-  type = string
+  type    = string
   default = "MIGRATE"
 }
 
 variable "preemptible" {
-  type = bool
+  type    = bool
   default = false
 }
 
 variable "provisioning-model" {
-  type = string
+  type    = string
   default = "STANDARD"
 }
 
 variable "compute-disk-autodelete" {
-  type = bool
+  type    = bool
   default = true
 }
 
 variable "allow-firewall-priority" {
-  type = number
+  type    = number
   default = 999
 }
 
 variable "deny-firewall-priority" {
-  type = number
+  type    = number
   default = 1000
 }
 
 variable "traffic-type" {
-  type = string
+  type    = string
   default = "tcp"
 }

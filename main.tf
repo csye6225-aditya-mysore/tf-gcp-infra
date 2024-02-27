@@ -7,7 +7,7 @@ terraform {
   }
 }
 
-provider "google" {
+provider "google-beta" {
   credentials = file(var.credentials_file)
   project     = var.project_id
   region      = var.region
@@ -28,6 +28,7 @@ resource "google_compute_network" "csye-vpc" {
 
 resource "google_compute_subnetwork" "webapp" {
   name          = "${var.webapp-subnet-name}-${count.index}"
+  project = var.project_id
   count         = var.vpc-count
   network       = google_compute_network.csye-vpc[count.index].id
   ip_cidr_range = cidrsubnet(var.cidr-range, 4, count.index)
@@ -37,6 +38,7 @@ resource "google_compute_subnetwork" "webapp" {
 
 resource "google_compute_subnetwork" "db" {
   name          = "${var.db-subnet-name}-${count.index}"
+  project = var.project_id
   count         = var.vpc-count
   network       = google_compute_network.csye-vpc[count.index].id
   ip_cidr_range = cidrsubnet(var.cidr-range, 4, count.index + var.vpc-count)
@@ -47,6 +49,7 @@ resource "google_compute_subnetwork" "db" {
 resource "google_compute_route" "public_route_for_webapp" {
   name             = "${var.public-route-name}-${count.index}"
   count            = var.vpc-count
+  project = var.project_id
   network          = google_compute_network.csye-vpc[count.index].id
   dest_range       = "0.0.0.0/0"
   next_hop_gateway = "default-internet-gateway"
@@ -55,6 +58,7 @@ resource "google_compute_route" "public_route_for_webapp" {
 resource "google_compute_firewall" "webapp_ingress_firewall" {
   name    = "webapp-ingress-firewall"
   count = var.vpc-count
+  project = var.project_id
   network = google_compute_network.csye-vpc[count.index].id
   priority = var.allow-firewall-priority
 
@@ -75,6 +79,7 @@ resource "google_compute_firewall" "webapp_ingress_firewall" {
 resource "google_compute_firewall" "webapp_ingress_firewall_2" {
   name    = "webapp-ingress-firewall-2"
   count = var.vpc-count
+  project = var.project_id
   network = google_compute_network.csye-vpc[count.index].id
   priority = var.deny-firewall-priority
 
@@ -91,55 +96,79 @@ resource "google_compute_firewall" "webapp_ingress_firewall_2" {
   ]
 }
 
-resource "google_compute_firewall" "webapp_out_firewall" {
-  name    = "webapp-out-firewall"
-  count = var.vpc-count
-  direction = "EGRESS"
-  network = google_compute_network.csye-vpc[count.index].id
-  priority = var.allow-firewall-priority
+# resource "google_compute_firewall" "webapp_out_firewall" {
+#   name    = "webapp-out-firewall"
+#   count = var.vpc-count
+#   direction = "EGRESS"
+#   network = google_compute_network.csye-vpc[count.index].id
+#   priority = var.allow-firewall-priority
 
-  allow {
-    protocol = var.traffic-type
-  }
+#   allow {
+#     protocol = var.traffic-type
+#   }
 
-  destination_ranges = [
-    "0.0.0.0/0"
-  ]
+#   destination_ranges = [
+#     "0.0.0.0/0"
+#   ]
 
-  target_tags = [
-    "webapp"
-  ]
-}
+#   target_tags = [
+#     "webapp"
+#   ]
+# }
 
 # resource "google_project_service" "project" {
 #   project = var.project_id
 #   service = "servicenetworking.googleapis.com"
 # }
 
-resource "google_compute_global_address" "private_ip_range_allocation" {
+# resource "google_compute_global_address" "private_ip_range_allocation" {
+#   name = "ip-range-for-google"
+#   project     = var.project_id
+#   count = var.vpc-count
+#   address_type = "INTERNAL"
+#   purpose = "VPC_PEERING"
+#   prefix_length = 16
+#   network = google_compute_network.csye-vpc[0].self_link
+# }
+
+resource "google_compute_address" "private_ip_address" {
   name = "ip-range-for-google"
   project     = var.project_id
-  count = var.vpc-count
-  purpose = "VPC_PEERING"
+  region = var.region
   address_type = "INTERNAL"
-  prefix_length = 24
-  network = google_compute_network.csye-vpc[count.index].id
+  address      = "198.167.0.5"
+  subnetwork = google_compute_subnetwork.webapp[0].self_link
 }
 
-resource "google_service_networking_connection" "vpc_peering_google_services" {
-  count = var.vpc-count
-  network = google_compute_network.csye-vpc[count.index].id
-  service = "servicenetworking.googleapis.com"
-  reserved_peering_ranges = [google_compute_global_address.private_ip_range_allocation[count.index].name]
-  deletion_policy = "ABANDON"
+data "google_sql_database_instance" "database_instance_data" {
+  project = var.project_id
+  name = resource.google_sql_database_instance.database_instance.name
 }
+
+resource "google_compute_forwarding_rule" "default" {
+  name                  = "psc-forwarding-rule"
+  project     = var.project_id
+  region                = var.region
+  network               = google_compute_network.csye-vpc[0].self_link
+  ip_address            = google_compute_address.private_ip_address.self_link
+  load_balancing_scheme = ""
+  target                = data.google_sql_database_instance.database_instance_data.psc_service_attachment_link
+}
+
+# resource "google_service_networking_connection" "vpc_peering_google_services" {
+#   count = var.vpc-count
+#   network = google_compute_network.csye-vpc[count.index].self_link
+#   service = "servicenetworking.googleapis.com"
+#   reserved_peering_ranges = [google_compute_global_address.private_ip_range_allocation[0].name]
+#   deletion_policy = "ABANDON"
+# }
 
 # COMPUTE RESOURCES
 resource "google_compute_instance" "new_instance" {
   name = var.compute-instance-name
-  # project     = var.project_id
+  project     = var.project_id
   machine_type = var.compute-machine-type
-  # zone = var.zone
+  zone = var.zone
   boot_disk {
     auto_delete = var.compute-disk-autodelete
     device_name = var.compute-instance-name
@@ -159,54 +188,75 @@ resource "google_compute_instance" "new_instance" {
     }
 
     stack_type  = var.stack-type
-    network = google_compute_network.csye-vpc[0].name
-    subnetwork = google_compute_subnetwork.webapp[0].name
+    subnetwork = google_compute_subnetwork.webapp[0].self_link
   }
 
-  # scheduling {
-  #   automatic_restart   = var.compute-instance-automatic-restart
-  #   on_host_maintenance = var.on-host-maintenance
-  #   preemptible         = var.preemptible
-  #   provisioning_model  = var.provisioning-model
-  # }
-
+  metadata_startup_script = <<-EOT
+  #!/bin/bash
+  echo "Hello, World! This is a startup script."
+  echo "Started with startup script"
+  if ! test [-f /home/adityamysore002/webapp/.env]; then
+    echo "DATABASE_NAME=${google_sql_database.sql_database.name}" > /home/adityamysore002/webapp/.env
+    echo "USERNAME=${google_sql_user.sql_user.name}" >> /home/adityamysore002/webapp/.env
+    echo "PASSWORD=${google_sql_user.sql_user.password}" >> /home/adityamysore002/webapp/.env
+    echo "DATABASE_HOST=${google_compute_address.private_ip_address.address}" >> /home/adityamysore002/webapp/.env
+  fi
+  sudo systemctl daemon-reload
+  sudo systemctl enable webapp.service
+EOT
+  # metadata_startup_script = templatefile("./startup.sh", {
+  #   DATABASE_NAME = google_sql_database.sql_database.name
+  #   USERNAME = google_sql_user.sql_user.name
+  #   PASSWORD = google_sql_user.sql_user.password
+  #   DATABASE_HOST = google_compute_address.private_ip_address.address
+  # })
   tags = ["webapp"]
-  depends_on = [ google_compute_network.csye-vpc[0] ]
+  depends_on = [ 
+    google_compute_network.csye-vpc[0],
+    google_sql_database_instance.database_instance, 
+    google_sql_database.sql_database,
+    google_sql_user.sql_user, 
+    google_compute_address.private_ip_address ]
 }
 
 
 # DATABASE RESOURCES
 
 resource "google_sql_database_instance" "database_instance" {
-  name = "dbnstance"
+  name = "newdb"
+  project = var.project_id
   deletion_protection = false
-  database_version = "POSTGRES_15"
+  database_version = "POSTGRES_14"
   region = var.region
   settings {
     disk_type = "PD_SSD"
     disk_size = 100
-    tier = "db-custom-2-13312"
+    tier = "db-custom-2-7680"
     ip_configuration {
-      ipv4_enabled = true
-      private_network = google_compute_network.csye-vpc[0].id
-      enable_private_path_for_google_cloud_services = true
+      psc_config {
+        psc_enabled               = true
+        allowed_consumer_projects = [var.project_id]
+      }
+      ipv4_enabled = false
     }
     availability_type = "REGIONAL"
   }
 
-  depends_on = [ google_service_networking_connection.vpc_peering_google_services[0] ]
+  # depends_on = [ google_service_networking_connection.vpc_peering_google_services[0] ]
 }
 
 resource "google_sql_database" "sql_database" {
-  name = "mydatabase"
-  instance = google_sql_database_instance.database_instance.id
+  name = "newdatabase"
+  project = var.project_id
+  instance = google_sql_database_instance.database_instance.name
   depends_on = [ google_sql_database_instance.database_instance ]
 }
 
 resource "google_sql_user" "sql_user" {
   name = "webapp"
-  instance = google_sql_database_instance.database_instance.id
-  password = "webapppass"
+  project = var.project_id
+  instance = google_sql_database_instance.database_instance.name
+  password = random_password.sql_password.result
   depends_on = [ google_sql_database.sql_database ]
   deletion_policy = "ABANDON"
 } 
