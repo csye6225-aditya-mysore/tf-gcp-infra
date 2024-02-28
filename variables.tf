@@ -152,3 +152,8 @@ variable "traffic-type" {
   type    = string
   default = "tcp"
 }
+
+variable "private-ip-address" {
+  type = string
+  default = "198.167.0.5"
+}
