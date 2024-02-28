@@ -64,7 +64,7 @@ resource "google_compute_firewall" "webapp_ingress_firewall" {
 
   allow {
     protocol = var.traffic-type
-    ports    = [var.app-port, "5432"]
+    ports    = [var.app-port, "5432", "22"]
   }
 
   source_ranges = [
@@ -83,7 +83,7 @@ resource "google_compute_firewall" "webapp_ingress_firewall_2" {
   network = google_compute_network.csye-vpc[count.index].id
   priority = var.deny-firewall-priority
 
-  allow {
+  deny {
     protocol = var.traffic-type
   }
 
@@ -136,7 +136,7 @@ resource "google_compute_address" "private_ip_address" {
   project     = var.project_id
   region = var.region
   address_type = "INTERNAL"
-  address      = "198.167.0.5"
+  address      = var.private-ip-address
   subnetwork = google_compute_subnetwork.webapp[0].self_link
 }
 
@@ -195,21 +195,17 @@ resource "google_compute_instance" "new_instance" {
   #!/bin/bash
   echo "Hello, World! This is a startup script."
   echo "Started with startup script"
-  if ! test [-f /home/adityamysore002/webapp/.env]; then
-    echo "DATABASE_NAME=${google_sql_database.sql_database.name}" > /home/adityamysore002/webapp/.env
-    echo "USERNAME=${google_sql_user.sql_user.name}" >> /home/adityamysore002/webapp/.env
-    echo "PASSWORD=${google_sql_user.sql_user.password}" >> /home/adityamysore002/webapp/.env
-    echo "DATABASE_HOST=${google_compute_address.private_ip_address.address}" >> /home/adityamysore002/webapp/.env
+  if ! test [-f /opt/webapp/.env]; then
+    echo "DATABASE_NAME=${google_sql_database.sql_database.name}" > /opt/webapp/.env
+    echo "USERNAME=${google_sql_user.sql_user.name}" >> /opt/webapp/.env
+    echo "PASSWORD=${google_sql_user.sql_user.password}" >> /opt/webapp/.env
+    echo "DATABASE_HOST=${google_compute_address.private_ip_address.address}" >> /opt/webapp/.env
+    sudo chown csye6225:csye6225 /opt/webapp/.env
   fi
   sudo systemctl daemon-reload
   sudo systemctl enable webapp.service
+  sudo systemctl start webapp.service
 EOT
-  # metadata_startup_script = templatefile("./startup.sh", {
-  #   DATABASE_NAME = google_sql_database.sql_database.name
-  #   USERNAME = google_sql_user.sql_user.name
-  #   PASSWORD = google_sql_user.sql_user.password
-  #   DATABASE_HOST = google_compute_address.private_ip_address.address
-  # })
   tags = ["webapp"]
   depends_on = [ 
     google_compute_network.csye-vpc[0],
@@ -226,7 +222,7 @@ resource "google_sql_database_instance" "database_instance" {
   name = "newdb"
   project = var.project_id
   deletion_protection = false
-  database_version = "POSTGRES_14"
+  database_version = "POSTGRES_15"
   region = var.region
   settings {
     disk_type = "PD_SSD"
