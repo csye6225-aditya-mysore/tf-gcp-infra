@@ -157,3 +157,8 @@ variable "private-ip-address" {
   type = string
   default = "198.167.0.5"
 }
+
+variable "allowed-ports-to-instance" {
+  type = list(string)
+  default = [ "8000", "5432" ]
+}

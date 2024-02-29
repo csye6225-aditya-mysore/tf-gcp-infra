@@ -64,7 +64,7 @@ resource "google_compute_firewall" "webapp_ingress_firewall" {
 
   allow {
     protocol = var.traffic-type
-    ports    = [var.app-port, "5432", "22"]
+    ports    = var.allowed-ports-to-instance
   }
 
   source_ranges = [
