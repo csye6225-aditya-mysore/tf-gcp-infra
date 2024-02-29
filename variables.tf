@@ -162,3 +162,23 @@ variable "allowed-ports-to-instance" {
   type = list(string)
   default = [ "8000", "5432" ]
 }
+
+variable "database-version" {
+  type = string
+  default = "POSTGRES_15"
+}
+
+variable "database-disk-size" {
+  type = number
+  default = 100
+}
+
+variable "database-tier" {
+  type = string
+  default = "db-custom-2-7680"
+}
+
+variable "database-deletion-protection" {
+  type = bool
+  default = false
+}
