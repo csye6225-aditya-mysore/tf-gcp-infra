@@ -242,7 +242,7 @@ resource "google_sql_database_instance" "database_instance" {
 }
 
 resource "google_sql_database" "sql_database" {
-  name = "newdatabase"
+  name = "webapp"
   project = var.project_id
   instance = google_sql_database_instance.database_instance.name
   depends_on = [ google_sql_database_instance.database_instance ]
