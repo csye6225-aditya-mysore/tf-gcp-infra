@@ -221,13 +221,13 @@ EOT
 resource "google_sql_database_instance" "database_instance" {
   name = "newdb"
   project = var.project_id
-  deletion_protection = false
-  database_version = "POSTGRES_15"
+  deletion_protection = var.database-deletion-protection
+  database_version = var.database-version
   region = var.region
   settings {
     disk_type = "PD_SSD"
-    disk_size = 100
-    tier = "db-custom-2-7680"
+    disk_size = var.database-disk-size
+    tier = var.database-tier
     ip_configuration {
       psc_config {
         psc_enabled               = true
