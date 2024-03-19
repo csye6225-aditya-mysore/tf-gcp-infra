@@ -182,3 +182,23 @@ variable "database-deletion-protection" {
   type = bool
   default = false
 }
+
+variable "service-account-id" {
+  type = string
+  default = "logging"
+}
+
+variable "service-account-display-name" {
+  type = string
+  default = "logging_service_account"
+}
+
+variable "dns-name" {
+  type = string
+  default = "adityawebapp.com."
+}
+
+variable "dns-managed-zone-name" {
+  type = string
+  default = "aditya-csye6225-dns"
+}

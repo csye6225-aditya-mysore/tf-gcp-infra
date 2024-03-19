@@ -207,12 +207,19 @@ resource "google_compute_instance" "new_instance" {
   sudo systemctl start webapp.service
 EOT
   tags = ["webapp"]
+
+  service_account {
+    email = google_service_account.instance_logging_service_account.email
+    scopes = [ "cloud-platform" ]
+  }
+
   depends_on = [ 
     google_compute_network.csye-vpc[0],
     google_sql_database_instance.database_instance, 
     google_sql_database.sql_database,
     google_sql_user.sql_user, 
-    google_compute_address.private_ip_address ]
+    google_compute_address.private_ip_address,
+    google_service_account.instance_logging_service_account ]
 }
 
 
@@ -246,6 +253,7 @@ resource "google_sql_database" "sql_database" {
   project = var.project_id
   instance = google_sql_database_instance.database_instance.name
   depends_on = [ google_sql_database_instance.database_instance ]
+  deletion_policy = "ABANDON"
 }
 
 resource "google_sql_user" "sql_user" {
@@ -261,5 +269,48 @@ resource "google_sql_user" "sql_user" {
 # RANDOM Generators
 
 resource "random_password" "sql_password" {
-  length = 5
+  length = 15
+}
+
+# SERVICE ACCOUNT
+resource "google_service_account" "instance_logging_service_account" {
+  account_id = var.service-account-id
+  display_name = var.service-account-display-name
+  project = var.project_id
+}
+
+# ROLE Bindings
+resource "google_project_iam_binding" "logging_role_binding" {
+  project = var.project_id
+  role = "roles/logging.admin"
+
+  members = [ 
+    "serviceAccount:${google_service_account.instance_logging_service_account.email}"
+   ]
+
+   depends_on = [ google_service_account.instance_logging_service_account ]
+}
+
+resource "google_project_iam_binding" "monitoring_role_binding" {
+  project = var.project_id
+  role = "roles/monitoring.metricWriter"
+
+  members = [ 
+    "serviceAccount:${google_service_account.instance_logging_service_account.email}"
+   ]
+
+   depends_on = [ google_service_account.instance_logging_service_account ]
+}
+
+
+# DNS
+resource "google_dns_record_set" "compute_instance_ip_record" {
+  name = var.dns-name
+  type = "A"
+  ttl = 30
+  project = var.project_id
+
+  managed_zone = var.dns-managed-zone-name
+  rrdatas = [ google_compute_instance.new_instance.network_interface[0].access_config[0].nat_ip ]
+  depends_on = [ google_compute_instance.new_instance ]
 }
