@@ -202,3 +202,8 @@ variable "dns-managed-zone-name" {
   type = string
   default = "aditya-csye6225-dns"
 }
+
+variable "vpc-connector-ip-cidr" {
+  type = string
+  default = "198.166.0.0/28"
+}

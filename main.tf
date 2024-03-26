@@ -76,25 +76,25 @@ resource "google_compute_firewall" "webapp_ingress_firewall" {
   ]
 }
 
-resource "google_compute_firewall" "webapp_ingress_firewall_2" {
-  name    = "webapp-ingress-firewall-2"
-  count = var.vpc-count
-  project = var.project_id
-  network = google_compute_network.csye-vpc[count.index].id
-  priority = var.deny-firewall-priority
+# resource "google_compute_firewall" "webapp_ingress_firewall_2" {
+#   name    = "webapp-ingress-firewall-2"
+#   count = var.vpc-count
+#   project = var.project_id
+#   network = google_compute_network.csye-vpc[count.index].id
+#   priority = var.deny-firewall-priority
 
-  deny {
-    protocol = var.traffic-type
-  }
+#   deny {
+#     protocol = var.traffic-type
+#   }
 
-  source_ranges = [
-    "0.0.0.0/0"
-  ]
+#   source_ranges = [
+#     "0.0.0.0/0"
+#   ]
 
-  target_tags = [
-    "webapp"
-  ]
-}
+#   target_tags = [
+#     "webapp"
+#   ]
+# }
 
 # resource "google_compute_firewall" "webapp_out_firewall" {
 #   name    = "webapp-out-firewall"
@@ -269,7 +269,7 @@ resource "google_sql_user" "sql_user" {
 # RANDOM Generators
 
 resource "random_password" "sql_password" {
-  length = 15
+  length = 10
 }
 
 # SERVICE ACCOUNT
@@ -279,7 +279,7 @@ resource "google_service_account" "instance_logging_service_account" {
   project = var.project_id
 }
 
-# ROLE Bindings
+# IAM ROLE Bindings
 resource "google_project_iam_binding" "logging_role_binding" {
   project = var.project_id
   role = "roles/logging.admin"
@@ -302,6 +302,16 @@ resource "google_project_iam_binding" "monitoring_role_binding" {
    depends_on = [ google_service_account.instance_logging_service_account ]
 }
 
+resource "google_pubsub_topic_iam_binding" "pubsub_binding" {
+  project = var.project_id
+  role = "roles/pubsub.editor"
+  topic = "verify_email"
+  members = [ 
+    "serviceAccount:${google_service_account.instance_logging_service_account.email}"
+   ]
+
+   depends_on = [ google_service_account.instance_logging_service_account ]
+}
 
 # DNS
 resource "google_dns_record_set" "compute_instance_ip_record" {
@@ -313,4 +323,17 @@ resource "google_dns_record_set" "compute_instance_ip_record" {
   managed_zone = var.dns-managed-zone-name
   rrdatas = [ google_compute_instance.new_instance.network_interface[0].access_config[0].nat_ip ]
   depends_on = [ google_compute_instance.new_instance ]
+}
+
+# VPC Connector for serverless access
+
+resource "google_vpc_access_connector" "connector" {
+  name          = "vpc-con"
+  ip_cidr_range = var.vpc-connector-ip-cidr
+  project = var.project_id
+  region = var.region
+  network       = google_compute_network.csye-vpc[0].name
+  min_instances = 2
+  max_instances = 3
+  depends_on = [ google_compute_network.csye-vpc[0] ]
 }
