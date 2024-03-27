@@ -376,6 +376,7 @@ resource "google_vpc_access_connector" "connector" {
 resource "google_pubsub_topic" "verify_email_1" {
   name = var.pubsub-topic-name
   project = var.project_id
+  message_retention_duration = "604800s"
 }
 
 # Cloud function
