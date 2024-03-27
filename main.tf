@@ -138,11 +138,18 @@ resource "google_compute_address" "private_ip_address" {
   address_type = "INTERNAL"
   address      = var.private-ip-address
   subnetwork = google_compute_subnetwork.webapp[0].self_link
+
+  depends_on = [ 
+    google_compute_subnetwork.webapp[0]
+  ]
 }
 
 data "google_sql_database_instance" "database_instance_data" {
   project = var.project_id
   name = resource.google_sql_database_instance.database_instance.name
+  depends_on = [ 
+    google_sql_database_instance.database_instance
+   ]
 }
 
 resource "google_compute_forwarding_rule" "default" {
@@ -153,6 +160,11 @@ resource "google_compute_forwarding_rule" "default" {
   ip_address            = google_compute_address.private_ip_address.self_link
   load_balancing_scheme = ""
   target                = data.google_sql_database_instance.database_instance_data.psc_service_attachment_link
+
+  depends_on = [ 
+    google_compute_network.csye-vpc[0],
+    google_compute_address.private_ip_address
+   ]
 }
 
 # resource "google_service_networking_connection" "vpc_peering_google_services" {
@@ -200,6 +212,7 @@ resource "google_compute_instance" "new_instance" {
     echo "USERNAME=${google_sql_user.sql_user.name}" >> /opt/webapp/.env
     echo "PASSWORD=${google_sql_user.sql_user.password}" >> /opt/webapp/.env
     echo "DATABASE_HOST=${google_compute_address.private_ip_address.address}" >> /opt/webapp/.env
+    echo "PUBSUB=${google_pubsub_topic.verify_email_1.name}" >> /opt/webapp/.env
     sudo chown csye6225:csye6225 /opt/webapp/.env
   fi
   sudo systemctl daemon-reload
@@ -209,7 +222,7 @@ EOT
   tags = ["webapp"]
 
   service_account {
-    email = google_service_account.instance_logging_service_account.email
+    email = google_service_account.instance_service_account.email
     scopes = [ "cloud-platform" ]
   }
 
@@ -219,7 +232,9 @@ EOT
     google_sql_database.sql_database,
     google_sql_user.sql_user, 
     google_compute_address.private_ip_address,
-    google_service_account.instance_logging_service_account ]
+    google_service_account.instance_service_account,
+    google_pubsub_topic.verify_email_1
+    ]
 }
 
 
@@ -273,7 +288,7 @@ resource "random_password" "sql_password" {
 }
 
 # SERVICE ACCOUNT
-resource "google_service_account" "instance_logging_service_account" {
+resource "google_service_account" "instance_service_account" {
   account_id = var.service-account-id
   display_name = var.service-account-display-name
   project = var.project_id
@@ -285,10 +300,10 @@ resource "google_project_iam_binding" "logging_role_binding" {
   role = "roles/logging.admin"
 
   members = [ 
-    "serviceAccount:${google_service_account.instance_logging_service_account.email}"
+    "serviceAccount:${google_service_account.instance_service_account.email}"
    ]
 
-   depends_on = [ google_service_account.instance_logging_service_account ]
+   depends_on = [ google_service_account.instance_service_account ]
 }
 
 resource "google_project_iam_binding" "monitoring_role_binding" {
@@ -296,21 +311,39 @@ resource "google_project_iam_binding" "monitoring_role_binding" {
   role = "roles/monitoring.metricWriter"
 
   members = [ 
-    "serviceAccount:${google_service_account.instance_logging_service_account.email}"
+    "serviceAccount:${google_service_account.instance_service_account.email}"
    ]
 
-   depends_on = [ google_service_account.instance_logging_service_account ]
+   depends_on = [ google_service_account.instance_service_account ]
 }
 
 resource "google_pubsub_topic_iam_binding" "pubsub_binding" {
   project = var.project_id
-  role = "roles/pubsub.editor"
-  topic = "verify_email"
+  role = "roles/pubsub.publisher"
+  topic = var.pubsub-topic-name
   members = [ 
-    "serviceAccount:${google_service_account.instance_logging_service_account.email}"
+    "serviceAccount:${google_service_account.instance_service_account.email}"
    ]
 
-   depends_on = [ google_service_account.instance_logging_service_account ]
+   depends_on = [ 
+    google_service_account.instance_service_account,
+    google_pubsub_topic.verify_email_1
+     ]
+}
+
+resource "google_cloud_run_service_iam_binding" "cloudfunction_binding" {
+  project = google_cloudfunctions2_function.function1.project
+  location = google_cloudfunctions2_function.function1.location
+  service = google_cloudfunctions2_function.function1.name
+  role = "roles/run.invoker"
+  members = [
+    "serviceAccount:${google_service_account.instance_service_account.email}"
+  ]
+
+  depends_on = [ 
+    google_service_account.instance_service_account,
+    google_cloudfunctions2_function.function1
+     ]
 }
 
 # DNS
@@ -336,4 +369,84 @@ resource "google_vpc_access_connector" "connector" {
   min_instances = 2
   max_instances = 3
   depends_on = [ google_compute_network.csye-vpc[0] ]
+}
+
+# PubSub
+
+resource "google_pubsub_topic" "verify_email_1" {
+  name = var.pubsub-topic-name
+  project = var.project_id
+}
+
+# Cloud function
+
+resource "google_cloudfunctions2_function" "function1" {
+  name = "example2"
+  location = var.region
+  description = "Function to send emails"
+  project = var.project_id
+
+  build_config {
+    runtime = "nodejs20"
+    entry_point = var.function-entry-point
+    
+
+    source {
+      storage_source {
+        bucket = var.bucket-name
+        object = google_storage_bucket_object.function-object.name
+      }
+    }
+  
+  }
+
+  service_config {
+    max_instance_count = 1
+    min_instance_count = 0
+    available_memory = "256M"
+    timeout_seconds = 60
+    ingress_settings = "ALLOW_ALL"
+    service_account_email = google_service_account.instance_service_account.email
+
+    environment_variables = {
+      DATABASE_NAME = google_sql_database.sql_database.name,
+      USERNAME = google_sql_user.sql_user.name,
+      PASSWORD = google_sql_user.sql_user.password,
+      DATABASE_HOST = google_compute_address.private_ip_address.address
+    }
+
+    vpc_connector = google_vpc_access_connector.connector.name
+    vpc_connector_egress_settings = "PRIVATE_RANGES_ONLY"
+  }
+
+  event_trigger {
+    trigger_region = var.region
+    event_type     = "google.cloud.pubsub.topic.v1.messagePublished"
+    pubsub_topic   = google_pubsub_topic.verify_email_1.id
+    service_account_email = google_service_account.instance_service_account.email
+  }
+
+  depends_on = [ 
+    google_vpc_access_connector.connector,
+    google_pubsub_topic.verify_email_1,
+    google_sql_database.sql_database,
+    google_sql_user.sql_user,
+    google_compute_address.private_ip_address,
+    google_pubsub_topic_iam_binding.pubsub_binding,
+    google_storage_bucket_object.function-object,
+    google_service_account.instance_service_account
+   ]
+  
+}
+
+data "archive_file" "default" {
+  type        = "zip"
+  output_path = "/tmp/function-source.zip"
+  source_dir  = "./serverless/"
+}
+
+resource "google_storage_bucket_object" "function-object" {
+  name   = "function-source.zip"
+  bucket = var.bucket-name
+  source = data.archive_file.default.output_path # Add path to the zipped function source code
 }
