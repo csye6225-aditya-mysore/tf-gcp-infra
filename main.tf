@@ -76,25 +76,25 @@ resource "google_compute_firewall" "webapp_ingress_firewall" {
   ]
 }
 
-# resource "google_compute_firewall" "webapp_ingress_firewall_2" {
-#   name    = "webapp-ingress-firewall-2"
-#   count = var.vpc-count
-#   project = var.project_id
-#   network = google_compute_network.csye-vpc[count.index].id
-#   priority = var.deny-firewall-priority
+resource "google_compute_firewall" "webapp_ingress_firewall_2" {
+  name    = "webapp-ingress-firewall-2"
+  count = var.vpc-count
+  project = var.project_id
+  network = google_compute_network.csye-vpc[count.index].id
+  priority = var.deny-firewall-priority
 
-#   deny {
-#     protocol = var.traffic-type
-#   }
+  deny {
+    protocol = var.traffic-type
+  }
 
-#   source_ranges = [
-#     "0.0.0.0/0"
-#   ]
+  source_ranges = [
+    "0.0.0.0/0"
+  ]
 
-#   target_tags = [
-#     "webapp"
-#   ]
-# }
+  target_tags = [
+    "webapp"
+  ]
+}
 
 # resource "google_compute_firewall" "webapp_out_firewall" {
 #   name    = "webapp-out-firewall"
