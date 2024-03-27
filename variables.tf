@@ -207,3 +207,23 @@ variable "vpc-connector-ip-cidr" {
   type = string
   default = "198.166.0.0/28"
 }
+
+variable "pubsub-topic-name" {
+  type = string
+  default = "verify_email_1"
+}
+
+variable "bucket-name" {
+  type = string
+  default = "aditya-csye6225"
+}
+
+variable "function-object-zip-name" {
+  type = string
+  default = "function-source.zip"
+}
+
+variable "function-entry-point" {
+  type = string
+  default = "helloPubSub"
+}
