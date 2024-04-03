@@ -227,3 +227,78 @@ variable "function-entry-point" {
   type = string
   default = "helloPubSub"
 }
+
+variable "distribution-zones" {
+  type = list(string)
+  default = [ "us-east1-b", "us-east2-c" ]
+}
+
+variable "proxy-subnet-cidr" {
+  type = string
+  default = "192.168.8.0/24"
+}
+
+variable "instance-group-name" {
+  type = string
+  default = "webapp-managed-instance-group"
+}
+
+variable "base-instance-name" {
+  type = string
+  default = "webapp-instance"
+}
+
+variable "port-name" {
+  type = string
+  default = "http"
+}
+
+variable "backend-name" {
+  type = string
+  default = "backend"
+}
+
+variable "url-map-name" {
+  type = string
+  default = "default-url-map"
+}
+
+variable "target-proxy-name" {
+  type = string
+  default = "http-proxy"
+}
+
+variable "lb-forwarding-rule-name" {
+  type = string
+  default = "ld-forwarding-rule"
+}
+
+variable "autoscaler-name" {
+  type = string
+  default = "default-autoscaler"
+}
+
+variable "cpu_utilization" {
+  type = number
+  default = 0.05
+}
+
+variable "max_instances" {
+  type = number
+  default = 10
+}
+
+variable "min_instances" {
+  type = number
+  default = 1
+}
+
+variable "certificate_file_path" {
+  type = string
+  default = "value"
+}
+
+variable "cooldown_period" {
+  type = number
+  default = 60
+}
