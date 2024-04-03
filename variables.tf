@@ -295,7 +295,12 @@ variable "min_instances" {
 
 variable "certificate_file_path" {
   type = string
-  default = "value"
+  default = "./certificate/adityawebapp_com.crt"
+}
+
+variable "private_key_path" {
+  type = string
+  default = "./certificate/private.key"
 }
 
 variable "cooldown_period" {

@@ -406,8 +406,8 @@ resource "google_compute_region_url_map" "url_map" {
 resource "google_compute_region_ssl_certificate" "ssl" {
   name_prefix = "ssl-certificate-"
   project = var.project_id
-  private_key = file("./certificate/private.key")
-  certificate = file("./certificate/adityawebapp_com.crt")
+  private_key = file(var.private_key_path)
+  certificate = file(var.certificate_file_path)
   region = var.region
 
   lifecycle {
