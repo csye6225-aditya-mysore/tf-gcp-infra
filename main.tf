@@ -213,12 +213,16 @@ resource "google_compute_region_instance_template" "webapp_template" {
     mode = "READ_WRITE"
     disk_type = var.compute-instance-disk-type
     disk_size_gb = var.compute-disk-size
+
+    disk_encryption_key {
+      kms_key_self_link = google_kms_crypto_key.vm-key.id
+    }
   }
 
   network_interface {
-    access_config {
-      network_tier = "PREMIUM"
-    }
+    # access_config {
+    #   network_tier = "PREMIUM"
+    # }
 
     stack_type = var.stack-type
     subnetwork = google_compute_subnetwork.webapp[0].self_link
@@ -255,8 +259,9 @@ resource "google_compute_region_instance_template" "webapp_template" {
     google_sql_user.sql_user, 
     google_compute_address.private_ip_address,
     google_service_account.instance_service_account,
-    google_pubsub_topic.verify_email_1
-    ]
+    google_pubsub_topic.verify_email_1,
+    google_kms_crypto_key_iam_binding.vm_key_iam_binding
+  ]
 }
 
 # Compute : Managed Instance group 
@@ -282,15 +287,15 @@ resource "google_compute_region_instance_group_manager" "webapp_instance_group" 
     port = 8000
   }
 
-  update_policy {
-    type                           = "PROACTIVE"
-    instance_redistribution_type   = "PROACTIVE"
-    minimal_action                 = "REPLACE"
-    most_disruptive_allowed_action = "REPLACE"
-    max_surge_percent              = 0
-    max_unavailable_fixed          = 2
-    replacement_method             = "RECREATE"
-  }
+  # update_policy {
+  #   type                           = "PROACTIVE"
+  #   instance_redistribution_type   = "PROACTIVE"
+  #   minimal_action                 = "REPLACE"
+  #   most_disruptive_allowed_action = "REPLACE"
+  #   max_surge_percent              = 0
+  #   max_unavailable_fixed          = 2
+  #   replacement_method             = "RECREATE"
+  # }
 
   depends_on = [ google_compute_region_instance_template.webapp_template ]
 
@@ -515,6 +520,7 @@ resource "google_sql_database_instance" "database_instance" {
   deletion_protection = var.database-deletion-protection
   database_version = var.database-version
   region = var.region
+  encryption_key_name = google_kms_crypto_key.sql-key.id
   settings {
     disk_type = "PD_SSD"
     disk_size = var.database-disk-size
@@ -528,6 +534,9 @@ resource "google_sql_database_instance" "database_instance" {
     }
     availability_type = "REGIONAL"
   }
+  depends_on = [ 
+    google_kms_crypto_key_iam_binding.sql_key_iam_binding
+   ]
 
   # depends_on = [ google_service_networking_connection.vpc_peering_google_services[0] ]
 }
@@ -554,12 +563,26 @@ resource "google_sql_user" "sql_user" {
 
 resource "random_password" "sql_password" {
   length = 10
+  special = false
 }
 
-# SERVICE ACCOUNT
+output "sql_password" {
+  value = nonsensitive(random_password.sql_password.result)
+}
+
+# SERVICE ACCOUNTS
 resource "google_service_account" "instance_service_account" {
   account_id = var.service-account-id
   display_name = var.service-account-display-name
+  project = var.project_id
+}
+
+resource "google_project_service_identity" "gcp_sa_cloud_sql" {
+  provider = google-beta
+  service  = "sqladmin.googleapis.com"
+}
+
+data "google_storage_project_service_account" "gcs_account" {
   project = var.project_id
 }
 
@@ -613,6 +636,45 @@ resource "google_cloud_run_service_iam_binding" "cloudfunction_binding" {
     google_service_account.instance_service_account,
     google_cloudfunctions2_function.function1
      ]
+}
+
+resource "google_kms_crypto_key_iam_binding" "vm_key_iam_binding" {
+  provider      = google-beta
+  crypto_key_id = google_kms_crypto_key.vm-key.id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+
+  members = [
+    "serviceAccount:${var.compute_service_agent}",
+  ]
+
+  depends_on = [ google_kms_crypto_key.vm-key ]
+}
+
+resource "google_kms_crypto_key_iam_binding" "sql_key_iam_binding" {
+  provider      = google-beta
+  crypto_key_id = google_kms_crypto_key.sql-key.id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+
+  members = [
+    "serviceAccount:${google_project_service_identity.gcp_sa_cloud_sql.email}",
+  ]
+
+  depends_on = [ 
+    google_project_service_identity.gcp_sa_cloud_sql,
+    google_kms_crypto_key.sql-key
+   ]
+}
+
+resource "google_kms_crypto_key_iam_binding" "storage_key_iam_binding" {
+  provider      = google-beta
+  crypto_key_id = google_kms_crypto_key.storage-key.id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+
+  members = [
+    "serviceAccount:${data.google_storage_project_service_account.gcs_account.email_address}",
+  ]
+
+  depends_on = [ google_kms_crypto_key.storage-key]
 }
 
 # DNS
@@ -683,7 +745,8 @@ resource "google_cloudfunctions2_function" "function1" {
       DATABASE_NAME = google_sql_database.sql_database.name,
       USERNAME = google_sql_user.sql_user.name,
       PASSWORD = google_sql_user.sql_user.password,
-      DATABASE_HOST = google_compute_address.private_ip_address.address
+      DATABASE_HOST = google_compute_address.private_ip_address.address,
+      MAILGUN_KEY = var.mailgun_key
     }
 
     vpc_connector = google_vpc_access_connector.connector.name
@@ -716,8 +779,71 @@ data "archive_file" "default" {
   source_dir  = "./serverless/"
 }
 
+resource "google_storage_bucket" "bucket" {
+  name = var.bucket-name
+  location = var.region
+  force_destroy = true
+  project = var.project_id
+
+  encryption {
+    default_kms_key_name = google_kms_crypto_key.storage-key.id
+  }
+
+  depends_on = [ google_kms_crypto_key_iam_binding.storage_key_iam_binding ]
+}
+
 resource "google_storage_bucket_object" "function-object" {
   name   = "function-source.zip"
   bucket = var.bucket-name
   source = data.archive_file.default.output_path # Add path to the zipped function source code
+
+  depends_on = [ 
+    google_storage_bucket.bucket
+   ]
+}
+
+# Key ring
+
+resource "google_kms_key_ring" "my_key_ring" {
+  name     = var.key_ring_name
+  project = var.project_id
+  location = var.region
+}
+
+# Keys
+
+resource "google_kms_crypto_key" "vm-key" {
+  name = var.vm_key_name
+  key_ring = google_kms_key_ring.my_key_ring.id
+  rotation_period = "2592000s"
+
+  lifecycle {
+    prevent_destroy = false
+  }
+
+  depends_on = [ google_kms_key_ring.my_key_ring ]
+}
+
+resource "google_kms_crypto_key" "sql-key" {
+  name = var.sql_key_name
+  key_ring = google_kms_key_ring.my_key_ring.id
+  rotation_period = "2592000s"
+
+  lifecycle {
+    prevent_destroy = false
+  }
+
+  depends_on = [ google_kms_key_ring.my_key_ring ]
+}
+
+resource "google_kms_crypto_key" "storage-key" {
+  name = var.storage_key_name
+  key_ring = google_kms_key_ring.my_key_ring.id
+  rotation_period = "2592000s"
+
+  lifecycle {
+    prevent_destroy = false
+  }
+
+  depends_on = [ google_kms_key_ring.my_key_ring ]
 }
