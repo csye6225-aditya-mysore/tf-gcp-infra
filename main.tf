@@ -566,9 +566,6 @@ resource "random_password" "sql_password" {
   special = false
 }
 
-output "sql_password" {
-  value = nonsensitive(random_password.sql_password.result)
-}
 
 # SERVICE ACCOUNTS
 resource "google_service_account" "instance_service_account" {
