@@ -307,3 +307,33 @@ variable "cooldown_period" {
   type = number
   default = 60
 }
+
+variable "vm_key_name" {
+  type = string
+  default = "csye6225-vm-key"
+}
+
+variable "sql_key_name" {
+  type = string
+  default = "csye6225-sql-key"
+}
+
+variable "storage_key_name" {
+  type = string
+  default = "csye6225-storage-key"
+}
+
+variable "key_ring_name" {
+  type = string
+  default = "csye6225-1"
+}
+
+variable "compute_service_agent" {
+  type = string
+  default = "service-205010625050@compute-system.iam.gserviceaccount.com"
+}
+
+variable "mailgun_key" {
+  type = string
+  default = "value"
+}
